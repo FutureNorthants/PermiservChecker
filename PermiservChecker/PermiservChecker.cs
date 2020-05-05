@@ -15,15 +15,19 @@ namespace PermiservChecker
         public static void Run([TimerTrigger("* * * * *")]TimerInfo myTimer, ILogger log)
         {
             log.LogInformation($"PermiservChecker executed at: {DateTime.Now}");
-            String[,] cases = null;
+            String[] cases = null;
             String filter = "gws-with-permiserv";
             int pages = 0;
             var keyClient = new SecretClient(new Uri("https://permiservchecker.vault.azure.net/"), new DefaultAzureCredential());
             KeyVaultSecret secret = null;
-            secret = keyClient.GetSecret("cxmEndpointLive");
+            secret = keyClient.GetSecret("cxmEndpoint");
             String cxmEndpoint = secret.Value;
             secret = keyClient.GetSecret("cxmAPIKey");
             String cxmAPIKey = secret.Value;
+            secret = keyClient.GetSecret("permiservEndpoint");
+            String permiservEndpoint = secret.Value;
+            secret = keyClient.GetSecret("permiservAPIKey");
+            String permiservAPIKey = secret.Value;
 
             HttpClient client = new HttpClient();
             client.BaseAddress = new Uri(cxmEndpoint);
@@ -63,7 +67,7 @@ namespace PermiservChecker
                     JObject caseSearch = JObject.Parse(responseString);
                     int totalCases = (int)caseSearch.SelectToken("total");
                     int numOfCases = (int)caseSearch.SelectToken("num_items");
-                    cases = new String[numOfCases,2];
+                    cases = new String[numOfCases];
                     if (totalCases == 0)
                     {
                         log.LogInformation("No cases to be processed");
@@ -72,16 +76,8 @@ namespace PermiservChecker
                     {
                         for (int currentCase = 0; currentCase < numOfCases; currentCase++)
                         {
-                            cases[currentCase,0] = (String)caseSearch.SelectToken("items[" + currentCase + "].reference");
-                            try
-                            {
-                                cases[currentCase,1] = (String)caseSearch.SelectToken("items[" + currentCase + "].permiserv-updates");
-                            }
-                            catch(Exception)
-                            {
-                                cases[currentCase,1] = "";
-                            }                           
-                            log.LogInformation(cases[currentCase,0] + " loaded for processing");
+                            cases[currentCase] = (String)caseSearch.SelectToken("items[" + currentCase + "].reference");               
+                            log.LogInformation(cases[currentCase] + " loaded for processing");
                         }
                     }
                 }
@@ -98,12 +94,12 @@ namespace PermiservChecker
             try
             {
                 client = new HttpClient();
-                client.BaseAddress = new Uri("https://northampton.permiserv.com");
+                client.BaseAddress = new Uri(permiservEndpoint);
                 for (int currentCase = 0; currentCase < cases.Length; currentCase++)
                 {
-                    requestParameters = "apiKey=" + "7EmfKCMz" + "&dataType=" + "get" + "&callType=" + "search" + "&councilJobNumber=" + cases[currentCase,0];
+                    requestParameters = "apiKey=" + permiservAPIKey + "&dataType=" + "get" + "&callType=" + "search" + "&councilJobNumber=" + cases[currentCase];
                     request = new HttpRequestMessage(HttpMethod.Get, "/api/" + "?" + requestParameters);
-                    log.LogInformation(cases[currentCase,0] + " checking status");
+                    log.LogInformation(cases[currentCase] + " checking status");
                     HttpResponseMessage response = client.SendAsync(request).Result;
                     if (response.IsSuccessStatusCode)
                     {
@@ -129,7 +125,7 @@ namespace PermiservChecker
                         }
                         else
                         {
-                            log.LogError("Permiserv API case search for " + cases[currentCase,0] +  " error : " + caseSearch.SelectToken("Errors[" + currentCase + "]"));
+                            log.LogError("Permiserv API case search for " + cases[currentCase] +  " error : " + caseSearch.SelectToken("Errors[" + currentCase + "]"));
                         }
                     }
                 }
