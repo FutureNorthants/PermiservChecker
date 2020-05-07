@@ -11,8 +11,7 @@ namespace PermiservChecker
     public static class PermiservChecker
     {
         [FunctionName("PermiservChecker")]
-        //public static void Run([TimerTrigger("0 * * * *")]TimerInfo myTimer, ILogger log)
-        public static void Run([TimerTrigger("* * * * *")]TimerInfo myTimer, ILogger log)
+        public static void Run([TimerTrigger("0 * * * * *")]TimerInfo myTimer, ILogger log)
         {
             log.LogInformation($"PermiservChecker executed at: {DateTime.Now}");
             String[] cases = null;
@@ -29,13 +28,13 @@ namespace PermiservChecker
             secret = keyClient.GetSecret("permiservAPIKey");
             String permiservAPIKey = secret.Value;
 
-            HttpClient client = new HttpClient();
-            client.BaseAddress = new Uri(cxmEndpoint);
+            HttpClient cxmClient = new HttpClient();
+            cxmClient.BaseAddress = new Uri(cxmEndpoint);
             string requestParameters = "key=" + cxmAPIKey + "&page=" + "1";
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, "/api/service-api/norbert/filters/" + filter + "/summaries" + "?" + requestParameters);
             try
             {
-                HttpResponseMessage response = client.SendAsync(request).Result;
+                HttpResponseMessage response = cxmClient.SendAsync(request).Result;
                 if (response.IsSuccessStatusCode)
                 {
                     HttpContent responseContent = response.Content;
@@ -59,7 +58,7 @@ namespace PermiservChecker
 
             try
             {
-                HttpResponseMessage response = client.SendAsync(request).Result;
+                HttpResponseMessage response = cxmClient.SendAsync(request).Result;
                 if (response.IsSuccessStatusCode)
                 {
                     HttpContent responseContent = response.Content;
@@ -93,14 +92,14 @@ namespace PermiservChecker
 
             try
             {
-                client = new HttpClient();
-                client.BaseAddress = new Uri(permiservEndpoint);
+                HttpClient permiservClient = new HttpClient();
+                permiservClient.BaseAddress = new Uri(permiservEndpoint);
                 for (int currentCase = 0; currentCase < cases.Length; currentCase++)
                 {
                     requestParameters = "apiKey=" + permiservAPIKey + "&dataType=" + "get" + "&callType=" + "search" + "&councilJobNumber=" + cases[currentCase];
                     request = new HttpRequestMessage(HttpMethod.Get, "/api/" + "?" + requestParameters);
                     log.LogInformation(cases[currentCase] + " checking status");
-                    HttpResponseMessage response = client.SendAsync(request).Result;
+                    HttpResponseMessage response = permiservClient.SendAsync(request).Result;
                     if (response.IsSuccessStatusCode)
                     {
                         HttpContent responseContent = response.Content;
@@ -115,7 +114,20 @@ namespace PermiservChecker
                             {
                              if (caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Dispatched"))
                                 {
-
+                                    requestParameters = "key=" + cxmAPIKey;
+                                    request = new HttpRequestMessage(HttpMethod.Post, "/api/service-api/norbert/case/" + cases[currentCase] + "/transition/" + "active-subscription" + "?" + requestParameters);
+                                    try
+                                    {
+                                        response = cxmClient.SendAsync(request).Result;
+                                        if (!response.IsSuccessStatusCode)
+                                        {
+                                            log.LogError("Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
+                                        }
+                                    }
+                                    catch (Exception error)
+                                    {
+                                        log.LogError("Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
+                                    }
                                 }
                             if (caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Replaced"))
                                 {
