@@ -13,7 +13,7 @@ namespace PermiservChecker
         [FunctionName("PermiservChecker")]
         public static void Run([TimerTrigger("0 * * * * *")]TimerInfo myTimer, ILogger log)
         {
-            log.LogInformation($"PermiservChecker executed at: {DateTime.Now}");
+            log.LogInformation($"PermiservChecker v1.1 executed at: {DateTime.Now}");
             String[] cases = null;
             String filter = "gws-with-permiserv";
             int pages = 0;
@@ -112,27 +112,24 @@ namespace PermiservChecker
 
                             for (int currentRow = 0; currentRow < numRows; currentRow++)
                             {
-                             if (caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Dispatched"))
-                                {
-                                    requestParameters = "key=" + cxmAPIKey;
-                                    request = new HttpRequestMessage(HttpMethod.Post, "/api/service-api/norbert/case/" + cases[currentCase] + "/transition/" + "active-subscription" + "?" + requestParameters);
-                                    try
-                                    {
-                                        response = cxmClient.SendAsync(request).Result;
-                                        if (!response.IsSuccessStatusCode)
+                                 if (caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Dispatched")||
+                                     caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Replaced"))
+                                 {
+                                        requestParameters = "key=" + cxmAPIKey;
+                                        request = new HttpRequestMessage(HttpMethod.Post, "/api/service-api/norbert/case/" + cases[currentCase] + "/transition/" + "active-subscription" + "?" + requestParameters);
+                                        try
                                         {
-                                            log.LogError("Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
+                                            response = cxmClient.SendAsync(request).Result;
+                                            if (!response.IsSuccessStatusCode)
+                                            {
+                                                log.LogError("Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
+                                            }
                                         }
-                                    }
-                                    catch (Exception error)
-                                    {
-                                        log.LogError("Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
-                                    }
-                                }
-                            if (caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Replaced"))
-                                {
-
-                                }
+                                        catch (Exception error)
+                                        {
+                                            log.LogError("Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
+                                        }
+                                 }
                             }
                         }
                         else
