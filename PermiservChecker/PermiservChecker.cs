@@ -13,7 +13,7 @@ namespace PermiservChecker
         [FunctionName("PermiservChecker")]
         public static void Run([TimerTrigger("0 * * * * *")]TimerInfo myTimer, ILogger log)
         {
-            log.LogInformation($"PermiservChecker v1.1 executed at: {DateTime.Now}");
+            log.LogInformation($"PermiservChecker v1.2 executed at: {DateTime.Now}");
             String[] cases = null;
             String filter = "gws-with-permiserv";
             int pages = 0;
@@ -76,7 +76,6 @@ namespace PermiservChecker
                         for (int currentCase = 0; currentCase < numOfCases; currentCase++)
                         {
                             cases[currentCase] = (String)caseSearch.SelectToken("items[" + currentCase + "].reference");               
-                            log.LogInformation(cases[currentCase] + " loaded for processing");
                         }
                     }
                 }
@@ -98,7 +97,6 @@ namespace PermiservChecker
                 {
                     requestParameters = "apiKey=" + permiservAPIKey + "&dataType=" + "get" + "&callType=" + "search" + "&councilJobNumber=" + cases[currentCase];
                     request = new HttpRequestMessage(HttpMethod.Get, "/api/" + "?" + requestParameters);
-                    log.LogInformation(cases[currentCase] + " checking status");
                     HttpResponseMessage response = permiservClient.SendAsync(request).Result;
                     if (response.IsSuccessStatusCode)
                     {
@@ -109,6 +107,25 @@ namespace PermiservChecker
                         if (caseSearch.SelectToken("Success").ToString().Equals("true"))
                         {                      
                            numRows = (int)caseSearch.SelectToken("['Num Rows']");
+
+                            if(numRows==0)
+                            {
+                                requestParameters = "key=" + cxmAPIKey;
+                                request = new HttpRequestMessage(HttpMethod.Post, "/api/service-api/norbert/case/" + cases[currentCase] + "/transition/" + "with-veolia" + "?" + requestParameters);
+                                log.LogWarning("Permiserv record not found, transitioning " + cases[currentCase] + " back to with-veolia for resubmission");
+                                try
+                                {
+                                    response = cxmClient.SendAsync(request).Result;
+                                    if (!response.IsSuccessStatusCode)
+                                    {
+                                        log.LogError("Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
+                                    }
+                                }
+                                catch (Exception error)
+                                {
+                                    log.LogError("Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
+                                }
+                            }
 
                             for (int currentRow = 0; currentRow < numRows; currentRow++)
                             {
@@ -124,12 +141,20 @@ namespace PermiservChecker
                                             {
                                                 log.LogError("Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
                                             }
+                                        else
+                                            {
+                                                log.LogInformation(cases[currentCase] + " transitioned to active-subscription");
+                                            }
                                         }
                                         catch (Exception error)
                                         {
                                             log.LogError("Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
                                         }
                                  }
+                                else
+                                {
+                                    log.LogInformation(cases[currentCase] + " ignored - Permiserv status is : " + caseSearch.SelectToken("Result[" + currentRow + "].state").ToString());
+                                }
                             }
                         }
                         else
