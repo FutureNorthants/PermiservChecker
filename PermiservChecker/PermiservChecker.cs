@@ -11,9 +11,9 @@ namespace PermiservChecker
     public static class PermiservChecker
     {
         [FunctionName("PermiservChecker")]
-        public static void Run([TimerTrigger("0 * * * * *")]TimerInfo myTimer, ILogger log)
+        public static void Run([TimerTrigger("0 0 0 * * *")]TimerInfo myTimer, ILogger log)
         {
-            log.LogInformation($"PermiservChecker v1.3 executed at: {DateTime.Now}");
+            log.LogInformation($"PermiservChecker v1.5 executed at: {DateTime.Now}");
             String[] cases = null;
             String filter = "gws-with-permiserv";
             int pages = 0;
