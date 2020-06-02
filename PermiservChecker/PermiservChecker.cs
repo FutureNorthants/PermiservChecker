@@ -13,7 +13,7 @@ namespace PermiservChecker
         [FunctionName("PermiservChecker")]
         public static void Run([TimerTrigger("0 0 0 * * *")]TimerInfo myTimer, ILogger log)
         {
-            log.LogInformation($"PermiservChecker v1.5 executed at: {DateTime.Now}");
+            log.LogInformation($"PermiservChecker v1.6 executed at: {DateTime.Now}");
             String[] cases = null;
             String filter = "gws-with-permiserv";
             int pages = 0;
@@ -57,10 +57,6 @@ namespace PermiservChecker
             int casesTransitioned = 0;
             for(int currentPage = pages; currentPage > 0; currentPage--)
             {
-                if (casesTransitioned>14)
-                {
-                    break;
-                }
                 requestParameters = "key=" + cxmAPIKey + "&page=" + currentPage.ToString();
                 request = new HttpRequestMessage(HttpMethod.Get, "/api/service-api/norbert/filters/" + filter + "/summaries" + "?" + requestParameters);
 
