@@ -5,6 +5,7 @@ using Azure.Security.KeyVault.Secrets;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
+using PermiservChecker.Helpers;
 
 namespace PermiservChecker
 {
@@ -12,8 +13,10 @@ namespace PermiservChecker
     {
         [FunctionName("PermiservChecker")]
         public static void Run([TimerTrigger("0 0 0 * * *")]TimerInfo myTimer, ILogger log)
+        //public static void Run([TimerTrigger("0 * * * * *")] TimerInfo myTimer, ILogger log)
         {
-            log.LogInformation($"PermiservChecker v1.6 executed at: {DateTime.Now}");
+            log.LogInformation($"PermiservChecker v1.7 executed at: {DateTime.Now}");
+            int caseCount = 0;
             String[] cases = null;
             String filter = "gws-with-permiserv";
             int pages = 0;
@@ -136,6 +139,8 @@ namespace PermiservChecker
 
                                 for (int currentRow = 0; currentRow < numRows; currentRow++)
                                 {
+                                    caseCount++;
+                                    CXMFieldUpdate updater = new CXMFieldUpdate(cases[currentCase], caseSearch.SelectToken("Result[" + currentRow + "].state").ToString(), cxmEndpoint, cxmAPIKey, log);
                                     if (caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Dispatched") ||
                                         caseSearch.SelectToken("Result[" + currentRow + "].state").ToString().Equals("Replaced"))
                                     {
@@ -146,24 +151,24 @@ namespace PermiservChecker
                                             response = cxmClient.SendAsync(request).Result;
                                             if (response.IsSuccessStatusCode)
                                             {
-                                                log.LogInformation(cases[currentCase] + " transitioned to active-subscription");
+                                                log.LogInformation(caseCount + " : " + cases[currentCase] + " transitioned to active-subscription");
                                                 casesTransitioned++;                                               
                                             }
                                             else
                                             {
-                                                log.LogError("Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
+                                                log.LogError(caseCount + " : " + "Permiserv transition error " + cases[currentCase] + " error : Unsuccessful status code");
                                             }
                                         }
                                         catch (Exception error)
                                         {
-                                            log.LogError("Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
+                                            log.LogError(caseCount + " : " + "Permiserv transition error " + cases[currentCase] + " error : " + error.Message);
                                         }
                                     }
                                     else
                                     {
-                                        log.LogInformation(cases[currentCase] + " ignored - Permiserv status is : " + caseSearch.SelectToken("Result[" + currentRow + "].state").ToString());
+                                        log.LogInformation(caseCount + " : " + cases[currentCase] + " ignored - Permiserv status is : " + caseSearch.SelectToken("Result[" + currentRow + "].state").ToString());
                                     }
-                                }
+                                                                    }
                             }
                             else
                             {
